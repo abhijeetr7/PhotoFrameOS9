@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFrame OS v4.6 - Ultimate Legacy Edition</title>
+    <title>PhotoFrame OS v4.7 - Folder Synced Legacy Edition</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -68,7 +68,7 @@
                 <h3 style="margin-top:0; font-weight: 400;">ALBUM MANAGER</h3>
                 <div class="settings-row">
                     <label>Select Folder</label>
-                    <select id="cfg-album"><option value="/">Root Directory</option></select>
+                    <select id="cfg-album"><option value="">Loading albums...</option></select>
                 </div>
                 <div class="settings-row">
                     <label>Duration</label>
@@ -84,11 +84,10 @@
     </div>
 
     <script>
-        // Adjust these to match your targeted asset workspace
         var REO_CONFIG = {
             username: 'abhijeetr7', 
             repo: 'photolibrary',      
-            branch: 'main' // If images fail, verify if your repo uses 'master' instead
+            branch: 'main' 
         };
 
         var OS_STATE = {
@@ -124,15 +123,32 @@
             wrapper.style.transition = 'opacity 2000ms ease-in-out';
             wrapper.style.webkitTransition = 'opacity 2000ms ease-in-out';
 
-            var fg = document.createElement('img');
-            fg.crossOrigin = "anonymous";
-            fg.src = url;
-            fg.style.cssText = 'position:absolute; max-width:100%; max-height:100%; top:50%; left:50%; z-index:2;';
-            fg.style.transform = 'translate(-50%, -50%) scale(1)';
-            fg.style.webkitTransform = 'translate(-50%, -50%) scale(1)';
+            var ext = url.split('.').pop().toLowerCase();
+            var isVideo = (ext === 'mp4' || ext === 'mov' || ext === 'm4v');
 
-            wrapper.appendChild(fg);
-            return { wrapper: wrapper, fg: fg };
+            if (isVideo) {
+                var video = document.createElement('video');
+                video.src = url;
+                video.style.cssText = 'position:absolute; max-width:100%; max-height:100%; top:50%; left:50%; transform:translate(-50%, -50%); -webkit-transform:translate(-50%, -50%); z-index:2;';
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.setAttribute('playsinline', 'true');
+                video.setAttribute('webkit-playsinline', 'true');
+                
+                wrapper.appendChild(video);
+                return { wrapper: wrapper, fg: video, isVideo: true };
+            } else {
+                var fg = document.createElement('img');
+                fg.crossOrigin = "anonymous";
+                fg.src = url;
+                fg.style.cssText = 'position:absolute; max-width:100%; max-height:100%; top:50%; left:50%; z-index:2;';
+                fg.style.transform = 'translate(-50%, -50%) scale(1)';
+                fg.style.webkitTransform = 'translate(-50%, -50%) scale(1)';
+
+                wrapper.appendChild(fg);
+                return { wrapper: wrapper, fg: fg, isVideo: false };
+            }
         }
 
         function preloadNextShadowNode() {
@@ -163,16 +179,25 @@
 
             var oldCurrent = OS_STATE.currentNode;
             var incoming = OS_STATE.nextNode;
-            var fg = incoming.getElementsByTagName('img')[0];
+            
+            var isVideo = incoming.getElementsByTagName('video').length > 0;
+            var mediaElement = isVideo ? incoming.getElementsByTagName('video')[0] : incoming.getElementsByTagName('img')[0];
 
             incoming.style.zIndex = "10";
             if (oldCurrent) oldCurrent.style.zIndex = "5";
 
-            executeKenBurns(fg);
+            if (isVideo) {
+                try { mediaElement.play(); } catch(e){}
+            } else {
+                executeKenBurns(mediaElement);
+            }
+
             incoming.style.opacity = "1";
 
             setTimeout(function() {
                 if (oldCurrent && oldCurrent.parentNode === document.getElementById('stage')) {
+                    var oldVideo = oldCurrent.getElementsByTagName('video')[0];
+                    if (oldVideo) { oldVideo.pause(); oldVideo.src = ""; }
                     document.getElementById('stage').removeChild(oldCurrent);
                 }
             }, 2100);
@@ -202,7 +227,11 @@
             OS_STATE.currentNode.style.opacity = "1";
             stage.appendChild(OS_STATE.currentNode);
             
-            executeKenBurns(data.fg);
+            if (data.isVideo) {
+                try { data.fg.play(); } catch(e){}
+            } else {
+                executeKenBurns(data.fg);
+            }
             preloadNextShadowNode();
         }
 
@@ -214,27 +243,19 @@
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var contents = JSON.parse(xhr.responseText);
                     var folders = [];
-                    var rootHasImages = false;
-                    var imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
                     for(var i = 0; i < contents.length; i++) {
                         if(contents[i].type === 'dir') {
                             folders.push(contents[i]);
-                        } else if (contents[i].type === 'file') {
-                            var ext = contents[i].name.split('.').pop().toLowerCase();
-                            if(imageExtensions.indexOf(ext) !== -1) rootHasImages = true;
                         }
                     }
                     
                     var dropdown = document.getElementById('cfg-album');
                     dropdown.innerHTML = '';
 
-                    // Add Root Option if images exist in root
-                    if (rootHasImages || folders.length === 0) {
-                        var rootOpt = document.createElement('option');
-                        rootOpt.value = "/root";
-                        rootOpt.innerText = "Root Folder";
-                        dropdown.appendChild(rootOpt);
+                    if (folders.length === 0) {
+                        dropdown.innerHTML = '<option value="">No folders found</option>';
+                        return;
                     }
 
                     for(var j = 0; j < folders.length; j++) {
@@ -244,23 +265,19 @@
                         dropdown.appendChild(opt);
                     }
 
-                    // Boot default path tracking
-                    if (rootHasImages) {
-                        syncNewFolder("/root", OS_STATE.duration);
-                    } else if (folders.length > 0) {
-                        syncNewFolder(folders[0].path, OS_STATE.duration);
-                    }
+                    // Automatically kick off the first available folder (e.g., Landscapes)
+                    syncNewFolder(folders[0].path, OS_STATE.duration);
                 }
             };
             xhr.send();
         }
 
         function syncNewFolder(folderPath, newDuration) {
+            if(!folderPath) return;
             clearTimeout(OS_STATE.loopId);
             OS_STATE.duration = newDuration;
 
-            var isRoot = (folderPath === "/root");
-            var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents' + (isRoot ? '' : '/' + folderPath);
+            var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents/' + encodeURIComponent(folderPath);
             
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url, true);
@@ -268,12 +285,12 @@
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var files = JSON.parse(xhr.responseText);
                     var imageUrls = [];
-                    var imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                    var validExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov'];
                     
                     for (var i = 0; i < files.length; i++) {
                         var file = files[i];
                         var ext = file.name.split('.').pop().toLowerCase();
-                        if (file.type === 'file' && imageExtensions.indexOf(ext) !== -1) {
+                        if (file.type === 'file' && validExtensions.indexOf(ext) !== -1) {
                             var rawUrl = 'https://raw.githubusercontent.com/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/' + REO_CONFIG.branch + '/' + file.path;
                             imageUrls.push(rawUrl);
                         }
