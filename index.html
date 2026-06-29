@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFrame OS v4.7 - Folder Synced Legacy Edition</title>
+    <title>PhotoFrame OS v4.8 - Instant Album Bar</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -16,6 +16,28 @@
 
         #stage { position: absolute; width: 100%; height: 100%; z-index: 2; }
 
+        /* --- Elegant Permanent Top Action Control Pill --- */
+        .top-control-pill {
+            position: absolute; top: 25px; left: 50%; 
+            transform: translateX(-50%); -webkit-transform: translateX(-50%);
+            z-index: 3000; background: rgba(30, 30, 30, 0.85); 
+            padding: 10px 24px; border-radius: 40px; 
+            border: 1px solid rgba(255, 255, 255, 0.2); 
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .top-control-pill label {
+            color: #fff; font-size: 0.85rem; font-weight: 600; 
+            letter-spacing: 1.5px; text-transform: uppercase;
+        }
+        .top-control-pill select {
+            background: #000; border: 1px solid rgba(255, 255, 255, 0.3); 
+            color: #fff; padding: 6px 16px; border-radius: 20px; 
+            outline: none; font-size: 0.9rem; font-weight: bold; 
+            min-width: 160px; cursor: pointer;
+        }
+
+        /* --- iOS Liquid Glass UI Architecture --- */
         .smart-widget-panel {
             position: absolute; bottom: 30px; right: 30px; z-index: 1000;
             background: rgba(30, 30, 30, 0.75);
@@ -25,7 +47,6 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
             transition: opacity 0.5s ease; -webkit-transition: opacity 0.5s ease;
             text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-            pointer-events: auto; cursor: pointer;
         }
 
         .clock-time { font-size: 3.5rem; font-weight: 100; line-height: 1; letter-spacing: -1px; }
@@ -33,26 +54,18 @@
 
         .weather-analytics-container { width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 10px; }
         .weather-primary-row { font-size: 1.2rem; font-weight: 300; margin-bottom: 2px; }
-
-        .settings-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 2000; display: none;
-            justify-content: center; align-items: center;
-        }
-        .settings-overlay.visible { display: flex; }
-
-        .settings-card {
-            background: #222; border: 1px solid rgba(255,255,255,0.2); border-radius: 16px;
-            padding: 24px; width: 80%; max-width: 400px; color: #fff;
-        }
-        .settings-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .settings-row select { background: #000; border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 10px; border-radius: 6px; min-width: 160px; }
-        .btn-action { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #fff; color: #000; font-weight: 600; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="viewport">
+        <div class="top-control-pill">
+            <label>Album:</label>
+            <select id="cfg-album" onchange="syncNewFolder(this.value, OS_STATE.duration)">
+                <option value="">Loading repository...</option>
+            </select>
+        </div>
+
         <div id="stage"></div>
         
         <div class="smart-widget-panel" id="os-widget-card">
@@ -60,25 +73,6 @@
             <div class="clock-date" id="ui-date">SYNCHRONIZING</div>
             <div class="weather-analytics-container" id="ui-weather">
                 <div style="font-size:0.8rem; color:rgba(255,255,255,0.4);">Awaiting Feed...</div>
-            </div>
-        </div>
-        
-        <div id="settings-modal" class="settings-overlay">
-            <div class="settings-card">
-                <h3 style="margin-top:0; font-weight: 400;">ALBUM MANAGER</h3>
-                <div class="settings-row">
-                    <label>Select Folder</label>
-                    <select id="cfg-album"><option value="">Loading albums...</option></select>
-                </div>
-                <div class="settings-row">
-                    <label>Duration</label>
-                    <select id="cfg-duration">
-                        <option value="5000">5 Seconds</option>
-                        <option value="8000" selected>8 Seconds</option>
-                        <option value="15000">15 Seconds</option>
-                    </select>
-                </div>
-                <button id="close-settings" class="btn-action">Save & Synchronize</button>
             </div>
         </div>
     </div>
@@ -95,7 +89,6 @@
             loopId: null,
             queue: [],
             pointer: 0,
-            uiVisible: true,
             currentNode: null,
             nextNode: null
         };
@@ -265,7 +258,7 @@
                         dropdown.appendChild(opt);
                     }
 
-                    // Automatically kick off the first available folder (e.g., Landscapes)
+                    // Automatically switch to the first folder (Landscapes) at bootup
                     syncNewFolder(folders[0].path, OS_STATE.duration);
                 }
             };
@@ -297,25 +290,14 @@
                     }
                     
                     if(imageUrls.length > 0) {
+                        // Dynamically update dropdown selection value to stay in sync
+                        document.getElementById('cfg-album').value = folderPath;
                         primePipeline(imageUrls);
                         startLoop();
                     }
                 }
             };
             xhr.send();
-        }
-
-        function initGestures() {
-            document.getElementById('os-widget-card').addEventListener('click', function() {
-                document.getElementById('settings-modal').style.display = 'flex';
-            });
-
-            document.getElementById('close-settings').addEventListener('click', function() {
-                var selectedFolder = document.getElementById('cfg-album').value;
-                var durationVal = parseInt(document.getElementById('cfg-duration').value);
-                syncNewFolder(selectedFolder, durationVal);
-                document.getElementById('settings-modal').style.display = 'none';
-            });
         }
 
         function fetchWeather() {
@@ -339,7 +321,6 @@
 
         window.onload = function() {
             initClockUpdates();
-            initGestures();
             loadRepositoryStructure();
             fetchWeather();
         };
