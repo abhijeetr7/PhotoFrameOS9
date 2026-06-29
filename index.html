@@ -253,11 +253,15 @@
             preloadNextShadowNode();
         }
 
-        // --- Cross-Origin Core Repository Network Pipeline (ES5 Native XHR) ---
+// --- Cross-Origin Core Repository Network Pipeline (ES5 Native XHR) ---
         function loadRepositoryStructure() {
             var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents';
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url, true);
+            
+            // 👇 ADD THIS LINE TO BYPASS RATE LIMITS (Paste your token inside the quotes)
+            xhr.setRequestHeader('Authorization', 'token ghp_YOUR_COPIED_TOKEN_HERE');
+            
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var contents = JSON.parse(xhr.responseText);
@@ -299,6 +303,10 @@
             var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents/' + folderPath;
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url, true);
+            
+            // 👇 ADD THIS LINE HERE TOO
+            xhr.setRequestHeader('Authorization', 'token ghp_YOUR_COPIED_TOKEN_HERE');
+            
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var files = JSON.parse(xhr.responseText);
