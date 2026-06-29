@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFrame OS v4.5 - Legacy iOS Edition</title>
+    <title>PhotoFrame OS v4.6 - Ultimate Legacy Edition</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -14,61 +14,45 @@
 
         #viewport { position: relative; width: 100%; height: 100%; overflow: hidden; }
 
-        #ambient-glow {
-            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
-            z-index: 1; opacity: 0; filter: blur(40px); -webkit-filter: blur(40px);
-            transform: scale(1.3); -webkit-transform: scale(1.3);
-            transition: opacity 2s ease-in-out; -webkit-transition: opacity 2s ease-in-out;
-            mix-blend-mode: screen; pointer-events: none;
-        }
-
         #stage { position: absolute; width: 100%; height: 100%; z-index: 2; }
 
-        /* --- iOS Liquid Glass UI Architecture --- */
         .smart-widget-panel {
             position: absolute; bottom: 30px; right: 30px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(30, 30, 30, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 20px; padding: 20px 30px; color: #fff; min-width: 240px;
             text-align: right;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 20px 40px rgba(0, 0, 0, 0.5);
-            transition: opacity 0.5s ease, transform 0.5s ease;
-            -webkit-transition: opacity 0.5s ease, -webkit-transform 0.5s ease;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.5s ease; -webkit-transition: opacity 0.5s ease;
             text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            pointer-events: auto; cursor: pointer;
         }
 
         .clock-time { font-size: 3.5rem; font-weight: 100; line-height: 1; letter-spacing: -1px; }
         .clock-date { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin: 6px 0 12px 0; color: rgba(255,255,255,0.8); }
 
-        .weather-analytics-container {
-            width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 10px;
-        }
+        .weather-analytics-container { width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 10px; }
         .weather-primary-row { font-size: 1.2rem; font-weight: 300; margin-bottom: 2px; }
-        .weather-secondary-details { font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- Settings Panel Overlay --- */
         .settings-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); z-index: 2000; display: none;
+            background: rgba(0,0,0,0.8); z-index: 2000; display: none;
             justify-content: center; align-items: center;
         }
         .settings-overlay.visible { display: flex; }
 
         .settings-card {
-            background: rgba(30, 30, 30, 0.9);
-            border: 1px solid rgba(255,255,255,0.2); border-radius: 16px;
+            background: #222; border: 1px solid rgba(255,255,255,0.2); border-radius: 16px;
             padding: 24px; width: 80%; max-width: 400px; color: #fff;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
         }
         .settings-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .settings-row select { background: #000; border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 10px; border-radius: 6px; outline: none; font-size: 0.9rem; min-width: 160px; }
-        .btn-action { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #fff; color: #000; font-weight: 600; cursor: pointer; margin-top: 8px; font-size: 0.95rem; }
+        .settings-row select { background: #000; border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 10px; border-radius: 6px; min-width: 160px; }
+        .btn-action { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #fff; color: #000; font-weight: 600; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="viewport">
-        <canvas id="ambient-glow"></canvas>
         <div id="stage"></div>
         
         <div class="smart-widget-panel" id="os-widget-card">
@@ -81,10 +65,10 @@
         
         <div id="settings-modal" class="settings-overlay">
             <div class="settings-card">
-                <h3 style="margin-top:0; letter-spacing:1px; font-weight: 400;">ALBUM MANAGER</h3>
+                <h3 style="margin-top:0; font-weight: 400;">ALBUM MANAGER</h3>
                 <div class="settings-row">
                     <label>Select Folder</label>
-                    <select id="cfg-album"><option value="">Loading repository folders...</option></select>
+                    <select id="cfg-album"><option value="/">Root Directory</option></select>
                 </div>
                 <div class="settings-row">
                     <label>Duration</label>
@@ -100,16 +84,13 @@
     </div>
 
     <script>
-        // ==========================================
-        // 🔧 TARGET IMAGE REPOSITORY CONFIGURATION
-        // ==========================================
+        // Adjust these to match your targeted asset workspace
         var REO_CONFIG = {
             username: 'abhijeetr7', 
             repo: 'photolibrary',      
-            branch: 'main'             
+            branch: 'main' // If images fail, verify if your repo uses 'master' instead
         };
 
-        // Global State Controller Object
         var OS_STATE = {
             duration: 8000,
             loopId: null,
@@ -120,7 +101,6 @@
             nextNode: null
         };
 
-        // --- Core UI Realtime Clock ---
         function initClockUpdates() {
             var update = function() {
                 var now = new Date();
@@ -128,54 +108,29 @@
                 var displayHours = hours % 12 || 12;
                 var minutes = String(now.getMinutes());
                 if (minutes.length < 2) minutes = '0' + minutes;
-                var displayHoursStr = String(displayHours);
-                if (displayHoursStr.length < 2) displayHoursStr = '0' + displayHoursStr;
-
-                document.getElementById('ui-time').innerHTML = displayHoursStr + ':' + minutes;
+                document.getElementById('ui-time').innerHTML = (displayHours < 10 ? '0' + displayHours : displayHours) + ':' + minutes;
                 
-                var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                var days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+                var months = ['JUNE', 'JULY', 'AUG', 'SEPT', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY'];
                 document.getElementById('ui-date').innerText = days[now.getDay()] + ', ' + months[now.getMonth()] + ' ' + now.getDate();
-                
-                var card = document.getElementById('os-widget-card');
-                if (hours >= 19 || hours < 6) { 
-                    card.style.opacity = "0.45"; 
-                } else { 
-                    card.style.opacity = "1"; 
-                }
             };
             setInterval(update, 1000);
             update();
         }
 
-// --- Image Dom Node Factory ---
         function buildLayerNode(url) {
             var wrapper = document.createElement('div');
             wrapper.style.cssText = 'position:absolute; width:100%; height:100%; top:0; left:0; opacity:0; display:block; background-color:#000;';
             wrapper.style.transition = 'opacity 2000ms ease-in-out';
             wrapper.style.webkitTransition = 'opacity 2000ms ease-in-out';
 
-            var bg = document.createElement('img');
-            bg.crossOrigin = "anonymous"; // 👈 Unblocks the old WebKit rendering block
-            bg.src = url;
-            bg.style.cssText = 'position:absolute; width:100%; height:100%; top:0; left:0; z-index:1;';
-            bg.style.transform = 'scale(1.2)';
-            bg.style.webkitTransform = 'scale(1.2)';
-            bg.style.opacity = '0.3'; 
-
             var fg = document.createElement('img');
-            fg.crossOrigin = "anonymous"; // 👈 Unblocks the old WebKit rendering block
+            fg.crossOrigin = "anonymous";
             fg.src = url;
             fg.style.cssText = 'position:absolute; max-width:100%; max-height:100%; top:50%; left:50%; z-index:2;';
             fg.style.transform = 'translate(-50%, -50%) scale(1)';
             fg.style.webkitTransform = 'translate(-50%, -50%) scale(1)';
-            
-            fg.onload = function() {
-                fg.style.top = '50%';
-                fg.style.left = '50%';
-            };
 
-            wrapper.appendChild(bg);
             wrapper.appendChild(fg);
             return { wrapper: wrapper, fg: fg };
         }
@@ -190,7 +145,6 @@
         }
 
         function executeKenBurns(element) {
-            // Simplified smooth hardware CSS transition for older iOS GPU layout rules
             element.style.transition = 'none';
             element.style.webkitTransition = 'none';
             element.style.transform = 'translate(-50%, -50%) scale(1)';
@@ -199,9 +153,9 @@
             setTimeout(function() {
                 element.style.transition = 'transform 12000ms linear';
                 element.style.webkitTransition = '-webkit-transform 12000ms linear';
-                element.style.transform = 'translate(-51%, -51%) scale(1.06)';
-                element.style.webkitTransform = 'translate(-51%, -51%) scale(1.06)';
-            }, 50);
+                element.style.transform = 'translate(-50%, -50%) scale(1.08)';
+                element.style.webkitTransform = 'translate(-50%, -50%) scale(1.08)';
+            }, 100);
         }
 
         function transitionNext() {
@@ -209,15 +163,14 @@
 
             var oldCurrent = OS_STATE.currentNode;
             var incoming = OS_STATE.nextNode;
-            var images = incoming.getElementsByTagName('img');
-            var fg = images[1];
+            var fg = incoming.getElementsByTagName('img')[0];
 
             incoming.style.zIndex = "10";
             if (oldCurrent) oldCurrent.style.zIndex = "5";
 
             executeKenBurns(fg);
-
             incoming.style.opacity = "1";
+
             setTimeout(function() {
                 if (oldCurrent && oldCurrent.parentNode === document.getElementById('stage')) {
                     document.getElementById('stage').removeChild(oldCurrent);
@@ -253,31 +206,35 @@
             preloadNextShadowNode();
         }
 
-// --- Cross-Origin Core Repository Network Pipeline (ES5 Native XHR) ---
         function loadRepositoryStructure() {
             var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents';
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url, true);
-            
-            // 👇 ADD THIS LINE TO BYPASS RATE LIMITS (Paste your token inside the quotes)
-            xhr.setRequestHeader('Authorization', 'token ghp_YOUR_COPIED_TOKEN_HERE');
-            
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var contents = JSON.parse(xhr.responseText);
                     var folders = [];
+                    var rootHasImages = false;
+                    var imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
                     for(var i = 0; i < contents.length; i++) {
                         if(contents[i].type === 'dir') {
                             folders.push(contents[i]);
+                        } else if (contents[i].type === 'file') {
+                            var ext = contents[i].name.split('.').pop().toLowerCase();
+                            if(imageExtensions.indexOf(ext) !== -1) rootHasImages = true;
                         }
                     }
                     
                     var dropdown = document.getElementById('cfg-album');
                     dropdown.innerHTML = '';
 
-                    if(folders.length === 0) {
-                        dropdown.innerHTML = '<option value="">No subfolders found</option>';
-                        return;
+                    // Add Root Option if images exist in root
+                    if (rootHasImages || folders.length === 0) {
+                        var rootOpt = document.createElement('option');
+                        rootOpt.value = "/root";
+                        rootOpt.innerText = "Root Folder";
+                        dropdown.appendChild(rootOpt);
                     }
 
                     for(var j = 0; j < folders.length; j++) {
@@ -287,26 +244,26 @@
                         dropdown.appendChild(opt);
                     }
 
-                    syncNewFolder(folders[0].path, OS_STATE.duration);
-                } else if (xhr.readyState === 4) {
-                    document.getElementById('cfg-album').innerHTML = '<option value="">API Sync Failure</option>';
+                    // Boot default path tracking
+                    if (rootHasImages) {
+                        syncNewFolder("/root", OS_STATE.duration);
+                    } else if (folders.length > 0) {
+                        syncNewFolder(folders[0].path, OS_STATE.duration);
+                    }
                 }
             };
             xhr.send();
         }
 
         function syncNewFolder(folderPath, newDuration) {
-            if(!folderPath) return;
             clearTimeout(OS_STATE.loopId);
             OS_STATE.duration = newDuration;
 
-            var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents/' + folderPath;
+            var isRoot = (folderPath === "/root");
+            var url = 'https://api.github.com/repos/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/contents' + (isRoot ? '' : '/' + folderPath);
+            
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url, true);
-            
-            // 👇 ADD THIS LINE HERE TOO
-            xhr.setRequestHeader('Authorization', 'token ghp_YOUR_COPIED_TOKEN_HERE');
-            
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var files = JSON.parse(xhr.responseText);
@@ -315,8 +272,7 @@
                     
                     for (var i = 0; i < files.length; i++) {
                         var file = files[i];
-                        var parts = file.name.split('.');
-                        var ext = parts[parts.length - 1].toLowerCase();
+                        var ext = file.name.split('.').pop().toLowerCase();
                         if (file.type === 'file' && imageExtensions.indexOf(ext) !== -1) {
                             var rawUrl = 'https://raw.githubusercontent.com/' + REO_CONFIG.username + '/' + REO_CONFIG.repo + '/' + REO_CONFIG.branch + '/' + file.path;
                             imageUrls.push(rawUrl);
@@ -326,42 +282,14 @@
                     if(imageUrls.length > 0) {
                         primePipeline(imageUrls);
                         startLoop();
-                    } else {
-                        alert("Folder is empty!");
                     }
                 }
             };
             xhr.send();
         }
 
-        // --- Pure iOS Touch Gesture Event Maps ---
         function initGestures() {
-            var lastTap = 0;
-            window.addEventListener('touchend', function(e) {
-                var currentTime = new Date().getTime();
-                var tapLength = currentTime - lastTap;
-                if (tapLength < 300 && tapLength > 0) {
-                    OS_STATE.uiVisible = !OS_STATE.uiVisible;
-                    var card = document.getElementById('os-widget-card');
-                    card.style.opacity = OS_STATE.uiVisible ? '1' : '0';
-                    e.preventDefault();
-                }
-                lastTap = currentTime;
-            }, false);
-
-            // Double tap anywhere on screen opens settings on iPad
-            document.getElementById('stage').addEventListener('click', function() {
-                // Standalone fallback if double click gesture maps fail
-            });
-
-            // Fallback for debug/development machines
-            window.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                document.getElementById('settings-modal').style.display = 'flex';
-            });
-
-            // Tap on the widget card itself to open settings panel on old iPad safely
-            document.getElementById('os-widget-card').addEventListener('click', function(e) {
+            document.getElementById('os-widget-card').addEventListener('click', function() {
                 document.getElementById('settings-modal').style.display = 'flex';
             });
 
@@ -373,14 +301,10 @@
             });
         }
 
-        // --- Native Telemetry Engine (No Arrow Bindings) ---
         function fetchWeather() {
             if (!navigator.geolocation) return;
             navigator.geolocation.getCurrentPosition(function(pos) {
-                var lat = pos.coords.latitude;
-                var lon = pos.coords.longitude;
-                var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true';
-                
+                var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pos.coords.latitude + '&longitude=' + pos.coords.longitude + '&current_weather=true';
                 var xhr = new XMLHttpRequest();
                 xhr.open('GET', url, true);
                 xhr.onreadystatechange = function() {
@@ -396,7 +320,6 @@
             });
         }
 
-        // Bootstrapping Engine
         window.onload = function() {
             initClockUpdates();
             initGestures();
